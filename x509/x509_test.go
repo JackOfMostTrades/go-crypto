@@ -1085,8 +1085,8 @@ func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
 		t.Fatalf("failed to parse CSR: %s", err)
 	}
 
-	expected := []struct{
-		Id asn1.ObjectIdentifier
+	expected := []struct {
+		Id    asn1.ObjectIdentifier
 		Value []byte
 	}{
 		{oidExtensionBasicConstraints, fromBase64("MAYBAf8CAQA=")},
