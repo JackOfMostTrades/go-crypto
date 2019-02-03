@@ -19,6 +19,7 @@ import (
 	_ "crypto/sha1"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	"crypto/tls/u2fkey"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
@@ -91,6 +92,15 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 		if err != nil {
 			return
 		}
+		publicKeyAlgorithm.Parameters.FullBytes = paramBytes
+	case *u2fkey.PublicKey:
+		var paramBytes []byte
+		paramBytes, err = asn1.Marshal(pub.App)
+		if err != nil {
+			return
+		}
+		publicKeyBytes = elliptic.Marshal(pub.EcdsaKey.Curve, pub.EcdsaKey.X, pub.EcdsaKey.Y)
+		publicKeyAlgorithm.Algorithm = oidPublicKeyU2F
 		publicKeyAlgorithm.Parameters.FullBytes = paramBytes
 	default:
 		return nil, pkix.AlgorithmIdentifier{}, errors.New("x509: only RSA and ECDSA public keys supported")
@@ -215,12 +225,14 @@ const (
 	RSA
 	DSA
 	ECDSA
+	U2F
 )
 
 var publicKeyAlgoName = [...]string{
 	RSA:   "RSA",
 	DSA:   "DSA",
 	ECDSA: "ECDSA",
+	U2F:   "U2F",
 }
 
 func (algo PublicKeyAlgorithm) String() string {
@@ -455,6 +467,7 @@ var (
 	oidPublicKeyRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
 	oidPublicKeyDSA   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
 	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+	oidPublicKeyU2F   = asn1.ObjectIdentifier{1, 3, 9900, 1, 1}
 )
 
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
@@ -465,6 +478,8 @@ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm 
 		return DSA
 	case oid.Equal(oidPublicKeyECDSA):
 		return ECDSA
+	case oid.Equal(oidPublicKeyU2F):
+		return U2F
 	}
 	return UnknownPublicKeyAlgorithm
 }
@@ -1063,6 +1078,28 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			Curve: namedCurve,
 			X:     x,
 			Y:     y,
+		}
+		return pub, nil
+	case U2F:
+		paramsData := keyData.Algorithm.Parameters.FullBytes
+		var app []byte
+		_, err := asn1.Unmarshal(paramsData, &app)
+		if err != nil {
+			return nil, errors.New("x509: failed to pars U2F parameters as byte array")
+		}
+
+		curve := elliptic.P256()
+		x, y := elliptic.Unmarshal(curve, asn1Data)
+		if x == nil {
+			return nil, errors.New("x509: failed to unmarshal elliptic curve point")
+		}
+		pub := &u2fkey.PublicKey{
+			App: app,
+			EcdsaKey: &ecdsa.PublicKey{
+				Curve: curve,
+				X:     x,
+				Y:     y,
+			},
 		}
 		return pub, nil
 	default:

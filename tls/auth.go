@@ -9,6 +9,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"crypto/tls/u2fkey"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -60,6 +61,10 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			if sigType == signatureECDSA {
 				return sigAlg, sigType, hashAlg, nil
 			}
+		case *u2fkey.PublicKey:
+			if sigType == signatureU2F {
+				return sigAlg, sigType, hashAlg, nil
+			}
 		default:
 			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
 		}
@@ -102,6 +107,14 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		signOpts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}
 		if err := rsa.VerifyPSS(pubKey, hashFunc, digest, sig, signOpts); err != nil {
 			return err
+		}
+	case signatureU2F:
+		pubKey, ok := pubkey.(*u2fkey.PublicKey)
+		if !ok {
+			return errors.New("tls: U2F signing requires a U2F public key")
+		}
+		if !u2fkey.Verify(pubKey, digest, sig) {
+			return errors.New("tls: U2F verification failure")
 		}
 	default:
 		return errors.New("tls: unknown signature algorithm")
@@ -183,6 +196,8 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			PSSWithSHA384,
 			PSSWithSHA512,
 		}
+	case *u2fkey.PublicKey:
+		return []SignatureScheme{U2F_V10}
 	default:
 		return nil
 	}

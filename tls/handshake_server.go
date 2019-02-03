@@ -9,6 +9,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/subtle"
+	"crypto/tls/u2fkey"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -754,7 +755,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey:
+	case *ecdsa.PublicKey, *rsa.PublicKey, *u2fkey.PublicKey:
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
 		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)

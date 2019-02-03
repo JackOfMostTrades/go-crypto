@@ -157,6 +157,7 @@ const (
 	signaturePKCS1v15 uint8 = iota + 16
 	signatureECDSA
 	signatureRSAPSS
+	signatureU2F
 )
 
 // supportedSignatureAlgorithms contains the signature and hash algorithms that
@@ -175,6 +176,7 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
+	U2F_V10,
 }
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -309,6 +311,9 @@ const (
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
+
+	// U2F signature algorithm
+	U2F_V10 SignatureScheme = 0xFE00
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to
@@ -1139,6 +1144,8 @@ func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 		return signatureRSAPSS
 	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
 		return signatureECDSA
+	case U2F_V10:
+		return signatureU2F
 	default:
 		return 0
 	}

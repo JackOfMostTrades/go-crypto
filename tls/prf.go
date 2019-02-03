@@ -181,7 +181,7 @@ func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, e
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, ECDSAWithSHA1:
 		return crypto.SHA1, nil
-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
+	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256, U2F_V10:
 		return crypto.SHA256, nil
 	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
 		return crypto.SHA384, nil
